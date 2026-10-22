@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>이쪽저쪽 : 유리수 무리수</title>
+<style>
+  :root{
+    --bg1:#eef2ff; --bg2:#fdf2f8;
+    --ink:#1e1b4b; --muted:#6b7280;
+    --irr:#f97316; --irr-soft:#ffedd5;
+    --rat:#2563eb; --rat-soft:#dbeafe;
+    --ok:#16a34a; --bad:#dc2626; --gold:#f59e0b;
+    --panel:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    color:var(--ink); overflow:hidden;
+    user-select:none; -webkit-user-select:none;
+    transition:background .4s;
+  }
+  body.fever{
+    background:linear-gradient(120deg,#fde68a,#fbcfe8,#c7d2fe,#fde68a);
+    background-size:300% 300%;
+    animation:feverBg 2.5s linear infinite;
+  }
+  @keyframes feverBg{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+  button{font-family:inherit;cursor:pointer;border:none}
+
+  .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+  .screen.active{display:flex}
+
+  .sound{position:fixed;top:12px;right:12px;background:var(--panel);color:var(--ink);padding:7px 13px;border-radius:999px;font-size:.9rem;z-index:70;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+  /* ===== 시작 화면 ===== */
+  .logo{font-size:clamp(2.6rem,8vw,4.6rem);font-weight:900;letter-spacing:-.02em;line-height:1.1;text-align:center}
+  .logo .l{color:var(--irr)} .logo .r2{color:var(--rat)}
+  .tag{font-size:clamp(1rem,2.6vw,1.3rem);color:var(--muted);font-weight:700;margin:6px 0 20px;text-align:center}
+  .desc{max-width:560px;text-align:center;line-height:1.75;font-size:clamp(1rem,2.4vw,1.15rem);margin-bottom:22px}
+  .desc b.i{color:var(--irr)} .desc b.q{color:var(--rat)}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:560px;width:100%;margin-bottom:28px}
+  .tile{background:var(--panel);border-radius:18px;padding:16px 8px;text-align:center;box-shadow:0 6px 18px rgba(30,27,75,.08)}
+  .tile b{display:block;font-size:clamp(1.2rem,3.4vw,1.6rem);font-weight:900;margin-bottom:4px}
+  .tile span{font-size:.9rem;color:var(--muted)}
+  .tile:nth-child(1) b{color:var(--rat)} .tile:nth-child(2) b{color:var(--irr)} .tile:nth-child(3) b{color:#db2777}
+  .bigbtn{
+    background:linear-gradient(135deg,var(--irr),#ec4899,var(--rat));
+    color:#fff;font-size:clamp(1.3rem,3.6vw,1.8rem);font-weight:900;
+    padding:16px 60px;border-radius:999px;box-shadow:0 10px 26px rgba(236,72,153,.35);
+    transition:transform .15s;
+  }
+  .bigbtn:hover{transform:scale(1.05)} .bigbtn:active{transform:scale(.97)}
+  .small{margin-top:14px;color:var(--muted);font-size:.92rem;text-align:center}
+
+  /* ===== 게임 화면 ===== */
+  #game{justify-content:flex-start;padding:12px 14px 14px}
+  .wrap{width:100%;max-width:1000px;height:100%;display:flex;flex-direction:column;gap:10px}
+  .hud{display:flex;justify-content:center;gap:12px}
+  .chip{background:var(--panel);border-radius:999px;padding:8px 20px;font-size:clamp(1.2rem,3.6vw,1.8rem);font-weight:900;box-shadow:0 4px 12px rgba(30,27,75,.08);min-width:110px;text-align:center;font-variant-numeric:tabular-nums;transition:transform .15s}
+  .chip.bump{transform:scale(1.15)}
+  #timeChip.warn{color:var(--bad);animation:pulse .5s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+  .timebar{height:10px;background:rgba(255,255,255,.7);border-radius:999px;overflow:hidden}
+  #bar{height:100%;width:100%;background:linear-gradient(90deg,#22c55e,#84cc16);border-radius:999px}
+  #bar.warn{background:linear-gradient(90deg,#ef4444,#f97316)}
+
+  #feverBanner{
+    align-self:center;display:none;flex-direction:column;align-items:center;gap:4px;
+    background:linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6);color:#fff;
+    font-weight:900;font-size:clamp(1.2rem,3.6vw,1.7rem);padding:6px 26px 8px;border-radius:999px;
+    box-shadow:0 6px 20px rgba(236,72,153,.4);animation:wobble .6s infinite alternate;
+  }
+  #feverBanner.show{display:flex}
+  #feverBanner .fbar{width:100%;height:5px;background:rgba(255,255,255,.35);border-radius:999px;overflow:hidden}
+  #feverBanner .fbar i{display:block;height:100%;width:100%;background:#fff}
+  @keyframes wobble{from{transform:rotate(-2deg) scale(1)}to{transform:rotate(2deg) scale(1.05)}}
+
+  .stage{flex:1;position:relative;display:grid;grid-template-columns:1fr minmax(0,1.3fr) 1fr;gap:14px;min-height:0}
+  .side{
+    border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    font-weight:900;cursor:pointer;transition:transform .12s,box-shadow .12s,background .15s;border:4px solid transparent;
+  }
+  .side.irr{background:var(--irr-soft);color:var(--irr);border-color:rgba(249,115,22,.35)}
+  .side.rat{background:var(--rat-soft);color:var(--rat);border-color:rgba(37,99,235,.35)}
+  .side .nm{font-size:clamp(1.5rem,4.4vw,2.8rem)}
+  .side .ky{font-size:.95rem;color:var(--muted);font-weight:700}
+  .side:active{transform:scale(.97)}
+  .side.hover{transform:scale(1.04);box-shadow:0 0 0 6px rgba(255,255,255,.8) inset}
+  .side.ok{background:#bbf7d0!important;border-color:var(--ok)!important}
+  .side.bad{background:#fecaca!important;border-color:var(--bad)!important}
+
+  .lane{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;min-height:0;position:relative}
+  .nextLbl{font-size:.9rem;font-weight:800;color:var(--muted)}
+  #queue{display:flex;flex-direction:column-reverse;align-items:center;gap:6px}
+  .qcard{
+    background:rgba(255,255,255,.85);border-radius:14px;box-shadow:0 3px 10px rgba(30,27,75,.08);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Times New Roman','Cambria Math',serif;font-weight:600;white-space:nowrap;
+  }
+  .qcard:nth-child(1){width:min(56%,220px);height:clamp(44px,7vh,64px);font-size:clamp(1.1rem,2.8vw,1.6rem);opacity:.95}
+  .qcard:nth-child(2){width:min(46%,180px);height:clamp(36px,5.6vh,52px);font-size:clamp(.95rem,2.3vw,1.3rem);opacity:.7}
+  .qcard:nth-child(3){width:min(38%,150px);height:clamp(30px,4.6vh,44px);font-size:clamp(.85rem,2vw,1.1rem);opacity:.45}
+
+  .card{
+    width:min(100%,360px);height:clamp(170px,34vh,300px);
+    background:#fff;border-radius:28px;
+    display:flex;align-items:center;justify-content:center;position:relative;
+    box-shadow:0 16px 36px rgba(30,27,75,.18);cursor:grab;touch-action:none;
+    font-family:'Times New Roman','Cambria Math',serif;
+    border:4px solid #e0e7ff;
+  }
+  body.fever .card{border-color:#f472b6;box-shadow:0 0 0 6px rgba(244,114,182,.25),0 16px 36px rgba(236,72,153,.3)}
+  .card:active{cursor:grabbing}
+  .card .math{font-size:clamp(2.4rem,7vw,4.4rem);font-weight:600;white-space:nowrap;padding:0 12px}
+  .card .drag{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:'Malgun Gothic',sans-serif;font-size:.82rem;color:#a5b4fc}
+  .card.enter{animation:enter .2s ease-out}
+  @keyframes enter{from{transform:translateY(-40px) scale(.75);opacity:.3}to{transform:none;opacity:1}}
+  .card.shake{animation:shake .45s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}40%{transform:translateX(14px)}60%{transform:translateX(-9px)}80%{transform:translateX(9px)}}
+
+  .pop{position:absolute;top:22%;font-weight:900;pointer-events:none;text-align:center;animation:pop .9s ease-out forwards;z-index:20;white-space:nowrap}
+  .pop .p1{font-size:clamp(2rem,5.4vw,3.2rem);color:var(--ok);text-shadow:0 3px 0 #fff}
+  .pop.fv .p1{color:#db2777}
+  .pop .p2{font-size:1rem;color:var(--gold);text-shadow:0 2px 0 #fff}
+  @keyframes pop{from{transform:translateY(0);opacity:1}to{transform:translateY(-80px);opacity:0}}
+
+  #feedback{
+    position:absolute;left:50%;bottom:2%;transform:translateX(-50%);
+    width:min(96%,560px);background:#fff;border:3px solid var(--bad);border-radius:18px;
+    padding:12px 18px;text-align:center;z-index:30;display:none;box-shadow:0 10px 30px rgba(0,0,0,.18);
+  }
+  #feedback.show{display:block}
+  #feedback .t{font-size:1.2rem;font-weight:900;margin-bottom:4px}
+  #feedback .e{font-size:1.02rem;line-height:1.6}
+
+  .mbtns{display:none;grid-template-columns:1fr 1fr;gap:10px}
+  .mbtn{padding:14px;border-radius:16px;font-size:1.25rem;font-weight:900;color:#fff}
+  .mbtn.irr{background:var(--irr)} .mbtn.rat{background:var(--rat)}
+
+  #count{position:fixed;inset:0;display:none;align-items:center;justify-content:center;font-size:clamp(5rem,20vw,11rem);font-weight:900;color:var(--ink);background:rgba(255,255,255,.7);z-index:60}
+  #count.show{display:flex}
+  #count span{animation:enter .35s}
+
+  /* ===== 결과 화면 ===== */
+  #result{justify-content:flex-start;overflow-y:auto;padding-top:34px}
+  .rtitle{font-size:clamp(2.2rem,7vw,3.6rem);font-weight:900;margin-bottom:12px}
+  .rbig{background:var(--panel);border-radius:24px;padding:16px 40px;text-align:center;box-shadow:0 8px 24px rgba(30,27,75,.1);margin-bottom:12px}
+  .rbig .v{font-size:clamp(3rem,11vw,5rem);font-weight:900;line-height:1.1;background:linear-gradient(135deg,var(--irr),#ec4899,var(--rat));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .rbig .l{color:var(--muted);font-weight:800}
+  #newBest{color:var(--gold);font-weight:900;min-height:1.4em;margin-bottom:10px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:560px;width:100%;margin-bottom:18px}
+  .stat{background:var(--panel);border-radius:16px;padding:12px;text-align:center;box-shadow:0 4px 12px rgba(30,27,75,.06)}
+  .stat .v{font-size:1.7rem;font-weight:900}
+  .stat .l{font-size:.9rem;color:var(--muted);font-weight:700}
+  .review{max-width:620px;width:100%;background:var(--panel);border-radius:20px;padding:14px 18px;margin-bottom:20px;box-shadow:0 4px 12px rgba(30,27,75,.06)}
+  .review h3{margin-bottom:8px}
+  .ritem{display:flex;align-items:center;gap:14px;padding:10px 0;border-top:1px solid #e5e7eb}
+  .ritem:first-of-type{border-top:none}
+  .ritem .rm{min-width:110px;background:#f8fafc;border:2px solid #e0e7ff;border-radius:12px;padding:6px 10px;text-align:center;font-size:1.4rem;font-family:'Times New Roman',serif;white-space:nowrap}
+  .badge{font-weight:900;font-size:.85rem;padding:2px 10px;border-radius:999px;color:#fff;display:inline-block;margin-bottom:4px}
+  .badge.irr{background:var(--irr)} .badge.rat{background:var(--rat)}
+  .ritem .ex{font-size:.97rem;line-height:1.5;color:#374151}
+  .perfect{color:var(--ok);font-weight:900;text-align:center;padding:6px}
+
+  /* ===== 수식 표기 ===== */
+  .r{display:inline-flex;align-items:flex-start;white-space:nowrap}
+  .r .rs{line-height:1.15}
+  .r .ov{border-top:.065em solid currentColor;padding:.06em .1em 0 .06em;margin-top:.1em;line-height:1.05;display:inline-flex;align-items:center}
+  .fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.78em;margin:0 .08em;line-height:1.15}
+  .fr>span:first-child{border-bottom:.07em solid currentColor;padding:0 .15em .04em}
+  .fr>span:last-child{padding-top:.04em}
+  .d{position:relative;display:inline-block}
+  .d::after{content:'';position:absolute;left:50%;top:-.02em;width:.13em;height:.13em;background:currentColor;border-radius:50%;transform:translateX(-50%)}
+
+  @media (max-width:640px){
+    .stage{grid-template-columns:52px 1fr 52px;gap:8px}
+    .side .nm{writing-mode:vertical-rl;font-size:1.3rem}
+    .side .ky{display:none}
+    .mbtns{display:grid}
+    .chip{min-width:0;padding:6px 14px}
+    .tiles{gap:8px}
+  }
+</style>
+</head>
+<body>
+
+<button class="sound" id="soundBtn">🔊</button>
+
+<!-- ===== 시작 화면 ===== -->
+<section class="screen active" id="start">
+  <h1 class="logo"><span class="l">이쪽</span><span class="r2">저쪽</span></h1>
+  <p class="tag">유리수 · 무리수</p>
+  <p class="desc">줄지어 오는 수 카드가 <b class="i">무리수</b>면 <b class="i">왼쪽(←)</b>, <b class="q">유리수</b>면 <b class="q">오른쪽(→)</b>!<br>60초 동안 최대한 많이, 콤보를 이어서 피버타임을 노려보세요.</p>
+  <div class="tiles">
+    <div class="tile"><b>60초</b><span>전체시간</span></div>
+    <div class="tile"><b>콤보 유지</b><span>깜짝 피버타임</span></div>
+    <div class="tile"><b>×2~×3</b><span>피버 배율</span></div>
+  </div>
+  <button class="bigbtn" id="startBtn">시작하기</button>
+  <p class="small">카드 끌어서 던지기 · 양쪽 칸 누르기 · 방향키 ← → 모두 가능</p>
+  <p class="small" id="bestStart"></p>
+</section>
+
+<!-- ===== 게임 화면 ===== -->
+<section class="screen" id="game">
+  <div class="wrap">
+    <div class="hud">
+      <div class="chip" id="scoreChip">⭐ <span id="score">0</span></div>
+      <div class="chip" id="timeChip">⏰ <span id="time">60</span></div>
+      <div class="chip" id="comboChip">🔥 <span id="combo">0</span></div>
+    </div>
+    <div class="timebar"><div id="bar"></div></div>
+    <div id="feverBanner"><div id="feverText">피버타임! ×2 🎉</div><div class="fbar"><i id="feverFill"></i></div></div>
+
+    <div class="stage" id="stage">
+      <div class="side irr" id="sideL"><div class="nm">무리수 ◀</div><div class="ky">← 방향키</div></div>
+      <div class="lane">
+        <div class="nextLbl">다음 카드 ▼</div>
+        <div id="queue"></div>
+        <div class="card" id="card"><div class="math" id="cardMath"></div><div class="drag">← 끌어서 던지기 →</div></div>
+      </div>
+      <div class="side rat" id="sideR"><div class="nm">▶ 유리수</div><div class="ky">→ 방향키</div></div>
+      <div id="feedback"><div class="t" id="fbT"></div><div class="e" id="fbE"></div></div>
+    </div>
+
+    <div class="mbtns">
+      <button class="mbtn irr" id="mL">← 무리수</button>
+      <button class="mbtn rat" id="mR">유리수 →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 결과 화면 ===== -->
+<section class="screen" id="result">
+  <div class="rtitle">타임업!</div>
+  <div class="rbig"><div class="v" id="rScore">0</div><div class="l">최종 점수</div></div>
+  <div id="newBest"></div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="rCombo">0</div><div class="l">최고 콤보</div></div>
+    <div class="stat"><div class="v" id="rAcc">0%</div><div class="l">정확도</div></div>
+    <div class="stat"><div class="v" id="rFever">0</div><div class="l">피버 발동</div></div>
+  </div>
+  <div class="review" id="review"></div>
+  <button class="bigbtn" id="againBtn">다시하기</button>
+  <p class="small" style="margin-bottom:30px">Enter 또는 Space 키로도 다시 시작할 수 있어요</p>
+</section>
+
+<div id="count"></div>
+
+<script>
+/* ===== 수식 표기 도우미 ===== */
+const sq = x => `<span class="r"><span class="rs">√</span><span class="ov">${x}</span></span>`;
+const fr = (a, b) => `<span class="fr"><span>${a}</span><span>${b}</span></span>`;
+const d  = x => `<span class="d">${x}</span>`;
+const IRR = 'irr', RAT = 'rat';
+
+/* ===== 카드 목록 (h: 카드에 보일 수, t: 정답, e: 해설) ===== */
+const CARDS = [
+  // ---------- 무리수 ----------
+  { h: sq('2'), t: IRR, e: `2는 제곱수가 아니므로 ${sq('2')} = 1.41421356… 은 순환하지 않는 무한소수예요.` },
+  { h: '−' + sq('5'), t: IRR, e: `5는 제곱수가 아니에요. 음의 부호가 붙어도 무리수예요.` },
+  { h: 'π', t: IRR, e: `원주율 π = 3.141592… 는 순환하지 않는 무한소수예요.` },
+  { h: sq('12'), t: IRR, e: `${sq('12')} = 2${sq('3')} 이므로 근호가 남아 무리수예요.` },
+  { h: sq('8'), t: IRR, e: `${sq('8')} = 2${sq('2')} 이므로 무리수예요.` },
+  { h: sq('50'), t: IRR, e: `${sq('50')} = 5${sq('2')} 이므로 무리수예요.` },
+  { h: sq('0.4'), t: IRR, e: `0.4 = ${fr('2','5')} 는 (유리수)² 꼴이 아니라서 무리수예요. ${sq('0.04')} = 0.2 와 비교해 보세요!` },
+  { h: sq('0.9'), t: IRR, e: `0.9 = ${fr('9','10')} 이고 ${sq(fr('9','10'))} = ${fr('3', sq('10'))} 이므로 무리수예요. ${sq('0.'+d('9'))} = 1 과 비교해 보세요!` },
+  { h: '2 + ' + sq('3'), t: IRR, e: `(유리수) + (무리수) = 무리수예요.` },
+  { h: fr(sq('3'), '2'), t: IRR, e: `(무리수) ÷ (0이 아닌 유리수) = 무리수예요.` },
+  { h: sq('2') + ' × ' + sq('3'), t: IRR, e: `${sq('2')} × ${sq('3')} = ${sq('6')} 이므로 무리수예요.` },
+  { h: '0.1010010001…', t: IRR, e: `1 사이의 0이 하나씩 늘어나서 순환마디가 없어요. 순환하지 않는 무한소수 → 무리수!` },
+  { h: 'π − 1', t: IRR, e: `π에서 1을 빼도 순환하지 않는 무한소수예요.` },
+
+  // ---------- 유리수 ----------
+  { h: sq('4'), t: RAT, e: `${sq('4')} = 2 이므로 유리수예요.` },
+  { h: '−' + sq('9'), t: RAT, e: `−${sq('9')} = −3 이므로 유리수예요.` },
+  { h: sq('121'), t: RAT, e: `${sq('121')} = 11 이므로 유리수예요.` },
+  { h: sq('0.04'), t: RAT, e: `0.2² = 0.04 이므로 ${sq('0.04')} = 0.2, 유리수예요.` },
+  { h: sq('0.25'), t: RAT, e: `0.5² = 0.25 이므로 ${sq('0.25')} = 0.5, 유리수예요.` },
+  { h: sq('0.' + d('4')), t: RAT, e: `0.444… = ${fr('4','9')} 이므로 ${sq(fr('4','9'))} = ${fr('2','3')}, 유리수예요.` },
+  { h: sq('0.' + d('9')), t: RAT, e: `0.999… = 1 이므로 ${sq('1')} = 1, 유리수예요.` },
+  { h: '0.' + d('3'), t: RAT, e: `0.333… = ${fr('1','3')}. 순환소수는 분수로 나타낼 수 있으니 유리수예요.` },
+  { h: '0.' + d('1') + d('2'), t: RAT, e: `0.1212… = ${fr('12','99')} = ${fr('4','33')} 이므로 유리수예요.` },
+  { h: '3.14', t: RAT, e: `3.14 = ${fr('314','100')} 인 유한소수예요. π와 헷갈리지 마세요!` },
+  { h: '−' + fr('7', '3'), t: RAT, e: `(정수)/(0이 아닌 정수) 꼴이므로 유리수예요.` },
+  { h: sq('8') + ' ÷ ' + sq('2'), t: RAT, e: `${sq('8')} ÷ ${sq('2')} = ${sq('4')} = 2 이므로 유리수예요.` },
+  { h: '(' + sq('3') + ')²', t: RAT, e: `(${sq('3')})² = 3 이므로 유리수예요.` },
+  { h: '0', t: RAT, e: `0 = ${fr('0','1')} 이므로 유리수예요.` },
+];
+
+/* ===== 설정 ===== */
+const GAME_TIME = 60;        // 전체 시간(초)
+const BASE = 100;            // 정답 기본 점수
+const FEVER_EVERY = 5;       // 콤보 5, 10, 15 … 마다 피버 발동
+const FEVER_TIME = 7;        // 피버 지속 시간(초)
+const QUEUE_SIZE = 3;        // 위에 보이는 '다음 카드' 수
+
+/* ===== 상태 ===== */
+const $ = id => document.getElementById(id);
+let bag = [], queue = [], cur = null;
+let score = 0, combo = 0, maxCombo = 0, correct = 0, total = 0, wrongs = [], feverCount = 0;
+let endAt = 0, feverUntil = 0, feverMult = 1, rafId = null;
+let running = false, locked = false, soundOn = true, actx = null, drag = null;
+
+/* ===== 유틸 ===== */
+function shuffle(a){
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function draw(){
+  if (bag.length === 0) bag = shuffle(CARDS.slice());
+  const last = queue.length ? queue[queue.length - 1] : cur;
+  if (bag[0] === last && bag.length > 1) bag.push(bag.shift());
+  return bag.shift();
+}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function getBest(){ try { return parseInt(localStorage.getItem('ijjk-irr-best') || '0', 10) || 0; } catch(e) { return 0; } }
+function setBest(v){ try { localStorage.setItem('ijjk-irr-best', String(v)); } catch(e) {} }
+function beep(freq, dur, type){
+  if (!soundOn) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.15, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch(e) {}
+}
+function bump(id){
+  const el = $(id);
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 150);
+}
+
+/* ===== 카드 ===== */
+function renderQueue(){
+  $('queue').innerHTML = queue.map(c => `<div class="qcard">${c.h}</div>`).join('');
+}
+function nextCard(){
+  cur = queue.shift();
+  queue.push(draw());
+  renderQueue();
+  const el = $('card');
+  el.style.transition = 'none';
+  el.style.transform = '';
+  el.style.opacity = '1';
+  el.classList.remove('enter', 'shake');
+  $('cardMath').innerHTML = cur.h;
+  void el.offsetWidth;
+  el.classList.add('enter');
+}
+function fly(dir, done){
+  const el = $('card');
+  el.classList.remove('enter', 'shake');
+  el.style.transition = 'transform .25s ease-in, opacity .25s ease-in';
+  el.style.transform = `translateX(${dir * 60}vw) rotate(${dir * 25}deg)`;
+  el.style.opacity = '0';
+  setTimeout(done, 250);
+}
+function flash(el, cls){
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 420);
+}
+function popText(main, sub, side, isFever){
+  const p = document.createElement('div');
+  p.className = 'pop' + (isFever ? ' fv' : '');
+  p.innerHTML = `<div class="p1">${main}</div>${sub ? `<div class="p2">${sub}</div>` : ''}`;
+  p.style[side === IRR ? 'left' : 'right'] = '4%';
+  $('stage').appendChild(p);
+  setTimeout(() => p.remove(), 900);
+}
+
+/* ===== 피버타임 ===== */
+function startFever(mult){
+  feverMult = mult;
+  feverUntil = performance.now() + FEVER_TIME * 1000;
+  feverCount++;
+  document.body.classList.add('fever');
+  $('feverText').textContent = `피버타임! ×${mult} 🎉`;
+  $('feverBanner').classList.add('show');
+  beep(880, 0.12, 'square');
+  setTimeout(() => beep(1175, 0.18, 'square'), 120);
+}
+function endFever(){
+  feverMult = 1;
+  feverUntil = 0;
+  document.body.classList.remove('fever');
+  $('feverBanner').classList.remove('show');
+}
+
+/* ===== 판정 ===== */
+function answer(choice){
+  if (!running || locked || !cur) return;
+  locked = true;
+  total++;
+  const c = cur;
+  const side = choice === IRR ? $('sideL') : $('sideR');
+
+  if (choice === c.t) {
+    correct++; combo++;
+    maxCombo = Math.max(maxCombo, combo);
+    if (combo % FEVER_EVERY === 0) startFever(combo >= FEVER_EVERY * 2 ? 3 : 2);
+    const comboBonus = Math.min(combo - 1, 10) * 10;      // 콤보 1개당 +10 (최대 +100)
+    const gain = (BASE + comboBonus) * feverMult;
+    score += gain;
+    const sub = [comboBonus ? `콤보 +${comboBonus}` : '', feverMult > 1 ? `피버 ×${feverMult}` : ''].filter(Boolean).join(' · ');
+    popText('+' + gain, sub, choice, feverMult > 1);
+    flash(side, 'ok');
+    beep(feverMult > 1 ? 990 : 660 + Math.min(combo, 10) * 30, 0.1, 'triangle');
+    updateHUD(); bump('scoreChip');
+    fly(choice === IRR ? -1 : 1, () => { locked = false; if (running) nextCard(); });
+  } else {
+    combo = 0;
+    endFever();
+    if (!wrongs.includes(c)) wrongs.push(c);
+    flash(side, 'bad');
+    beep(180, 0.3, 'sawtooth');
+    updateHUD();
+    const el = $('card');
+    el.style.transition = 'none';
+    el.style.transform = '';
+    el.classList.remove('enter', 'shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+    $('fbT').innerHTML = `❌ 정답은 <span style="color:var(--${c.t})">${c.t === IRR ? '무리수' : '유리수'}</span>`;
+    $('fbE').innerHTML = c.e;
+    $('feedback').classList.add('show');
+    setTimeout(() => {
+      $('feedback').classList.remove('show');
+      if (!running) return;
+      fly(c.t === IRR ? -1 : 1, () => { locked = false; if (running) nextCard(); });
+    }, 1500);
+  }
+}
+
+function updateHUD(){
+  $('score').textContent = score.toLocaleString();
+  $('combo').textContent = combo;
+  if (combo > 0) bump('comboChip');
+}
+
+/* ===== 타이머 ===== */
+function tick(){
+  const now = performance.now();
+  const left = Math.max(0, (endAt - now) / 1000);
+  $('time').textContent = Math.ceil(left);
+  $('bar').style.width = (left / GAME_TIME * 100) + '%';
+  const warn = left <= 10;
+  $('bar').classList.toggle('warn', warn);
+  $('timeChip').classList.toggle('warn', warn);
+  if (feverUntil) {
+    const fl = feverUntil - now;
+    if (fl <= 0) endFever();
+    else $('feverFill').style.width = (fl / (FEVER_TIME * 1000) * 100) + '%';
+  }
+  if (left <= 0) { endGame(); return; }
+  rafId = requestAnimationFrame(tick);
+}
+
+/* ===== 게임 흐름 ===== */
+function startGame(){
+  score = 0; combo = 0; maxCombo = 0; correct = 0; total = 0; wrongs = []; feverCount = 0;
+  bag = shuffle(CARDS.slice()); cur = null; queue = [];
+  for (let i = 0; i < QUEUE_SIZE + 1; i++) queue.push(draw());
+  endFever();
+  running = false; locked = true;
+  updateHUD();
+  $('time').textContent = GAME_TIME;
+  $('bar').style.width = '100%';
+  $('bar').classList.remove('warn');
+  $('timeChip').classList.remove('warn');
+  $('feedback').classList.remove('show');
+  $('cardMath').innerHTML = '?';
+  $('queue').innerHTML = '';
+  $('card').style.transform = ''; $('card').style.opacity = '1';
+  show('game');
+
+  const steps = ['3', '2', '1', '시작!'];
+  const cnt = $('count');
+  cnt.classList.add('show');
+  let i = 0;
+  (function step(){
+    if (i < steps.length) {
+      cnt.innerHTML = `<span>${steps[i]}</span>`;
+      beep(i < 3 ? 520 : 880, 0.15, 'square');
+      i++;
+      setTimeout(step, i < 4 ? 650 : 450);
+    } else {
+      cnt.classList.remove('show');
+      running = true; locked = false;
+      endAt = performance.now() + GAME_TIME * 1000;
+      nextCard();
+      rafId = requestAnimationFrame(tick);
+    }
+  })();
+}
+
+function endGame(){
+  running = false; locked = true;
+  cancelAnimationFrame(rafId);
+  endFever();
+  $('feedback').classList.remove('show');
+  beep(440, 0.5, 'triangle');
+
+  const best = getBest();
+  $('rScore').textContent = score.toLocaleString();
+  if (score > best && score > 0) { setBest(score); $('newBest').textContent = '🏆 최고 기록 경신!'; }
+  else $('newBest').textContent = best ? `최고 기록: ${best.toLocaleString()}점` : '';
+  $('rCombo').textContent = maxCombo;
+  $('rAcc').textContent = total ? Math.round(correct / total * 100) + '%' : '0%';
+  $('rFever').textContent = feverCount;
+
+  const rv = $('review');
+  if (total === 0) {
+    rv.innerHTML = `<div class="perfect">카드를 하나도 보내지 않았어요. 다시 도전해 볼까요?</div>`;
+  } else if (wrongs.length === 0) {
+    rv.innerHTML = `<div class="perfect">🎉 ${total}장 모두 정답! 완벽해요!</div>`;
+  } else {
+    rv.innerHTML = `<h3>📝 틀린 카드 다시 보기 (${correct}/${total} 정답)</h3>` + wrongs.map(w => `
+      <div class="ritem">
+        <div class="rm">${w.h}</div>
+        <div>
+          <span class="badge ${w.t}">${w.t === IRR ? '무리수' : '유리수'}</span>
+          <div class="ex">${w.e}</div>
+        </div>
+      </div>`).join('');
+  }
+  setTimeout(() => show('result'), 400);
+  updateStartBest();
+}
+
+function updateStartBest(){
+  const b = getBest();
+  $('bestStart').textContent = b ? `🏆 이 기기의 최고 기록: ${b.toLocaleString()}점` : '';
+}
+
+/* ===== 입력: 버튼·칸 누르기 ===== */
+$('startBtn').addEventListener('click', startGame);
+$('againBtn').addEventListener('click', startGame);
+$('sideL').addEventListener('click', () => answer(IRR));
+$('sideR').addEventListener('click', () => answer(RAT));
+$('mL').addEventListener('click', () => answer(IRR));
+$('mR').addEventListener('click', () => answer(RAT));
+$('soundBtn').addEventListener('click', () => {
+  soundOn = !soundOn;
+  $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+});
+
+/* ===== 입력: 키보드 ===== */
+document.addEventListener('keydown', e => {
+  if ($('game').classList.contains('active')) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { e.preventDefault(); answer(IRR); }
+    else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { e.preventDefault(); answer(RAT); }
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    if ($('start').classList.contains('active') || $('result').classList.contains('active')) {
+      e.preventDefault(); startGame();
+    }
+  }
+});
+
+/* ===== 입력: 끌어서 던지기 ===== */
+const cardEl = $('card');
+cardEl.addEventListener('pointerdown', e => {
+  if (!running || locked) return;
+  drag = { x: e.clientX };
+  try { cardEl.setPointerCapture(e.pointerId); } catch(err) {}
+  cardEl.classList.remove('enter', 'shake');
+  cardEl.style.transition = 'none';
+});
+cardEl.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  cardEl.style.transform = `translateX(${dx}px) rotate(${dx / 15}deg)`;
+  $('sideL').classList.toggle('hover', dx < -40);
+  $('sideR').classList.toggle('hover', dx > 40);
+});
+function endDrag(e){
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  drag = null;
+  $('sideL').classList.remove('hover');
+  $('sideR').classList.remove('hover');
+  if (Math.abs(dx) > 80 && running && !locked) answer(dx < 0 ? IRR : RAT);
+  else { cardEl.style.transition = 'transform .2s'; cardEl.style.transform = ''; }
+}
+cardEl.addEventListener('pointerup', endDrag);
+cardEl.addEventListener('pointercancel', endDrag);
+
+updateStartBest();
+</script>
+</body>
+</html>
